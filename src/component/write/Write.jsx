@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { English, amharic } from '../../assets/texts';
 import langs from '../../assets/Lang';
 import './Write.css';
-// import 'bootstrap/dist/css/bootstrap.min.css';
 import 'bootstrap-icons/font/bootstrap-icons.css';
 import time from '../../assets/time';
 
@@ -13,15 +12,18 @@ const Write = () => {
   const [startTime, setStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [cursorPosition, setCursorPosition] = useState(0);
 
   const takeNumber = () => {
     const textsArray = language === 'English' ? English : amharic;
     setRNumber(Math.floor(Math.random() * textsArray.length));
+    setCursorPosition(0);
   };
 
   const handleLanguageChange = (e) => {
     setLanguage(e.target.value);
     setRNumber(0);
+    setCursorPosition(0);
   };
 
   const handleTimeChange = (e) => {
@@ -29,7 +31,7 @@ const Write = () => {
   };
 
   useEffect(() => {
-    const handleKeyDown = () => {
+    const handleKeyDown = (e) => {
       if (!isTyping) {
         if (selectedTime === null) {
           alert('Please select a time to start the typing session.');
@@ -39,6 +41,9 @@ const Write = () => {
         setStartTime(Date.now());
         setElapsedTime(selectedTime);
       }
+
+      // Update cursor position
+      setCursorPosition(prevPosition => prevPosition + 1);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -70,6 +75,7 @@ const Write = () => {
   }, [isTyping, selectedTime]);
 
   const textsArray = language === 'English' ? English : amharic;
+  const displayText = textsArray[rNumber].slice(0, cursorPosition);
 
   return (
     <div>
@@ -100,8 +106,12 @@ const Write = () => {
           <h4 className={`${isTyping ? 'visible' : 'invisible'} ${elapsedTime < 5 ? 'text-danger' : ''}`}>{elapsedTime} seconds</h4>
         </div>
       </div>
-      <h3 className="container-lg">{textsArray[rNumber]}</h3>
-      
+     <div><h4 className="container-lg my-5">{textsArray[rNumber]}</h4></div>
+      <div className="container-lg">
+        <h3>
+          {displayText}<span className="writing-cursor">|</span>
+        </h3>
+      </div>
     </div>
   );
 };

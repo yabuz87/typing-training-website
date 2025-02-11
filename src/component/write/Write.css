@@ -6,7 +6,7 @@
   
   .option-selection {
     display: flex;
-    flex-row;
+    /* flex-row; */
     align-items: center;
     height: 5vh;
     margin-bottom: 50px;
@@ -51,5 +51,17 @@
   .invisible {
     opacity: 0;
     transition: opacity 0.5s ease-in-out; /* Smooth transition */
+  }
+  .writing-cursor {
+    display: inline-block;
+    width: 2px;
+    background-color: orange;
+    animation: blink 1s step-start infinite;
+  }
+  
+  @keyframes blink {
+    50% {
+      opacity: 0;
+    }
   }
   
