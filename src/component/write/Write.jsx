@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { English, amharic } from '../../assets/texts';
 import langs from '../../assets/Lang';
 import './Write.css';
@@ -11,27 +11,30 @@ const Write = () => {
   const [isTyping, setIsTyping] = useState(false);
   const [startTime, setStartTime] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTime, setSelectedTime] = useState('30');
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [inputValue, setInputValue] = useState('');
 
   const takeNumber = () => {
     const textsArray = language === 'English' ? English : amharic;
     setRNumber(Math.floor(Math.random() * textsArray.length));
     setCursorPosition(0);
+    setInputValue('');
   };
 
   const handleLanguageChange = (e) => {
     setLanguage(e.target.value);
     setRNumber(0);
     setCursorPosition(0);
+    setInputValue('');
   };
 
   const handleTimeChange = (e) => {
     setSelectedTime(parseInt(e.target.value, 10));
   };
 
-  useEffect(() => {
-    const handleKeyDown = (e) => {
+  const handleKeyDown = useCallback(
+    (e) => {
       if (!isTyping) {
         if (selectedTime === null) {
           alert('Please select a time to start the typing session.');
@@ -42,16 +45,23 @@ const Write = () => {
         setElapsedTime(selectedTime);
       }
 
-      // Update cursor position
-      setCursorPosition(prevPosition => prevPosition + 1);
-    };
+      // Check if typed key matches the current character in the text
+      if (isCorrect(e.key)) {
+        // Update cursor position
+        setCursorPosition((prevPosition) => prevPosition + 1);
+        setInputValue((prevValue) => prevValue + e.key);
+      }
+    },
+    [isTyping, selectedTime, cursorPosition]
+  );
 
+  useEffect(() => {
     window.addEventListener('keydown', handleKeyDown);
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isTyping, selectedTime]);
+  }, [handleKeyDown]);
 
   useEffect(() => {
     let timer;
@@ -75,7 +85,12 @@ const Write = () => {
   }, [isTyping, selectedTime]);
 
   const textsArray = language === 'English' ? English : amharic;
-  const displayText = textsArray[rNumber].slice(0, cursorPosition);
+  const displayText = textsArray[rNumber] ? textsArray[rNumber].slice(0, cursorPosition) : '';
+
+  const isCorrect = (key) => {
+    const currentText = textsArray[rNumber].slice(0, cursorPosition + 1);
+    return key === currentText[cursorPosition];
+  };
 
   return (
     <div>
@@ -106,7 +121,7 @@ const Write = () => {
           <h4 className={`${isTyping ? 'visible' : 'invisible'} ${elapsedTime < 5 ? 'text-danger' : ''}`}>{elapsedTime} seconds</h4>
         </div>
       </div>
-     <div><h4 className="container-lg my-5">{textsArray[rNumber]}</h4></div>
+      <div><h4 className="container-lg my-5">{textsArray[rNumber]}</h4></div>
       <div className="container-lg">
         <h3>
           {displayText}<span className="writing-cursor">|</span>

@@ -2,7 +2,7 @@ import React from 'react';
 import "./App.css"
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from './component/Navbar/Navbar';
-import Write from './component/Write/Write';
+import Write from './component/write/Write';
 
 const App = () => {
   return (
