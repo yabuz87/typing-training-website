@@ -1,10 +1,11 @@
 import TypingTest from '@/components/TypingTest';
+import TypingRace from '@/components/TypingRace';
 
 export default function Home() {
   return <main>
     <nav className="nav shell" aria-label="Main navigation">
       <a className="brand" href="#top" aria-label="ElType home"><span className="brandMark">E</span> eltype</a>
-      <div className="navLinks"><a href="#test">Test</a><a href="#insights">Insights</a><a href="#about">How it works</a></div>
+      <div className="navLinks"><a href="#test">Test</a><a href="#race">Race</a><a href="#insights">Insights</a><a href="#about">How it works</a></div>
       <a className="navCta" href="#test">Start typing <span>↗</span></a>
     </nav>
     <section className="hero shell" id="top">
@@ -14,6 +15,7 @@ export default function Home() {
       <div className="heroStats" aria-label="Features"><div><strong>2</strong><span>Languages</span></div><i /><div><strong>6</strong><span>Live metrics</span></div><i /><div><strong>100%</strong><span>Private</span></div></div>
     </section>
     <TypingTest />
+    <TypingRace />
     <section className="about shell" id="about">
       <div><span className="sectionNo">01 / HOW IT WORKS</span><h2>Practice with<br />purpose.</h2></div>
       <div className="steps">

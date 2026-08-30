@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { texts } from '@/lib/texts';
 
 const durations = [15, 30, 60];
-const emptyStats = { wpm: 0, raw: 0, accuracy: 100, consistency: 100, errors: 0, correct: 0 };
+const emptyStats = { wpm: 0, raw: 0, accuracy: 100, consistency: 100, errors: 0, uncorrectedErrors: 0, correctedErrors: 0, correct: 0, keystrokes: 0 };
 
 export default function TypingTest() {
   const [language, setLanguage] = useState('English');
@@ -16,20 +16,27 @@ export default function TypingTest() {
   const [samples, setSamples] = useState([]);
   const [result, setResult] = useState(null);
   const [history, setHistory] = useState([]);
+  const [keystrokes, setKeystrokes] = useState(0);
+  const [mistakes, setMistakes] = useState(0);
+  const [correctedErrors, setCorrectedErrors] = useState(0);
   const inputRef = useRef(null);
+  const passageRef = useRef(null);
+  const currentCharRef = useRef(null);
+  const [cursor, setCursor] = useState({ x: 0, y: 0, height: 42, visible: false });
 
   const passage = texts[language][textIndex % texts[language].length];
   const elapsed = status === 'idle' ? 0 : Math.max(1, duration - secondsLeft);
 
   const stats = useMemo(() => {
-    if (!typed.length) return emptyStats;
+    if (!typed.length && !keystrokes) return emptyStats;
     let correct = 0;
     for (let i = 0; i < typed.length; i += 1) if (typed[i] === passage[i]) correct += 1;
+    const uncorrectedErrors = typed.length - correct;
     const minutes = elapsed / 60;
-    const raw = minutes ? Math.round(typed.length / 5 / minutes) : 0;
+    const raw = minutes ? Math.round(keystrokes / 5 / minutes) : 0;
     const wpm = minutes ? Math.max(0, Math.round((correct / 5) / minutes)) : 0;
-    return { wpm, raw, accuracy: Math.round((correct / typed.length) * 100), errors: typed.length - correct, correct, consistency: 100 };
-  }, [typed, passage, elapsed]);
+    return { wpm, raw, accuracy: keystrokes ? Math.round(((keystrokes - mistakes) / keystrokes) * 100) : 100, errors: mistakes, uncorrectedErrors, correctedErrors, correct, keystrokes, consistency: 100 };
+  }, [typed, passage, elapsed, keystrokes, mistakes, correctedErrors]);
 
   const finish = useCallback(() => {
     if (status !== 'running') return;
@@ -61,27 +68,61 @@ export default function TypingTest() {
     return () => clearInterval(sampler);
   }, [duration, secondsLeft, stats.wpm, status]);
   useEffect(() => { if (typed.length >= passage.length && status === 'running') finish(); }, [finish, passage.length, status, typed.length]);
+  useLayoutEffect(() => {
+    function positionCursor() {
+      const passageNode = passageRef.current;
+      const characterNode = currentCharRef.current;
+      if (!passageNode || !characterNode || status === 'finished') { setCursor((value) => ({ ...value, visible: false })); return; }
+      setCursor({ x: passageNode.offsetLeft + characterNode.offsetLeft - 2, y: passageNode.offsetTop + characterNode.offsetTop + 5, height: characterNode.getBoundingClientRect().height * 0.78, visible: true });
+    }
+    positionCursor();
+    window.addEventListener('resize', positionCursor);
+    return () => window.removeEventListener('resize', positionCursor);
+  }, [typed, passage, status]);
 
   function reset(nextIndex = textIndex + 1) {
-    setTyped(''); setStatus('idle'); setSecondsLeft(duration); setSamples([]); setResult(null); setTextIndex(nextIndex);
+    setTyped(''); setStatus('idle'); setSecondsLeft(duration); setSamples([]); setResult(null); setTextIndex(nextIndex); setKeystrokes(0); setMistakes(0); setCorrectedErrors(0);
     setTimeout(() => inputRef.current?.focus(), 0);
   }
   function configure(type, value) {
     if (status === 'running') return;
     if (type === 'language') { setLanguage(value); setTextIndex(0); }
     else { setDuration(value); setSecondsLeft(value); }
-    setTyped(''); setResult(null); setStatus('idle');
+    setTyped(''); setResult(null); setStatus('idle'); setKeystrokes(0); setMistakes(0); setCorrectedErrors(0);
   }
   function handleInput(event) {
     if (status === 'finished') return;
+    if (status === 'idle') return;
     const value = event.target.value.slice(0, passage.length);
-    if (status === 'idle' && value.length) setStatus('running');
+    if (value.length > typed.length) {
+      const added = value.slice(typed.length);
+      let newMistakes = 0;
+      for (let i = 0; i < added.length; i += 1) if (added[i] !== passage[typed.length + i]) newMistakes += 1;
+      setKeystrokes((count) => count + added.length);
+      setMistakes((count) => count + newMistakes);
+    } else if (value.length < typed.length) {
+      const removed = typed.slice(value.length);
+      let fixed = 0;
+      for (let i = 0; i < removed.length; i += 1) if (removed[i] !== passage[value.length + i]) fixed += 1;
+      setCorrectedErrors((count) => count + fixed);
+    }
     setTyped(value);
+  }
+  function handleKeyDown(event) {
+    if (status === 'idle' && event.key === 'Enter') {
+      event.preventDefault();
+      setStatus('running');
+      return;
+    }
+    if (event.key === 'Enter') event.preventDefault();
   }
   const best = Math.max(0, ...history.map((item) => item.wpm));
   const display = result || stats;
-  const chart = result ? samples : [];
+  const chart = result ? (samples.length ? samples : [{ second: duration, wpm: result.wpm }]) : [];
   const maxChart = Math.max(20, ...chart.map((item) => item.wpm));
+  const chartPoints = chart.map((item, index) => ({ x: chart.length === 1 ? 300 : 18 + (index / (chart.length - 1)) * 564, y: 172 - (item.wpm / maxChart) * 142, ...item }));
+  const chartLine = chartPoints.map((point) => `${point.x},${point.y}`).join(' ');
+  const chartArea = chartPoints.length ? `M ${chartPoints[0].x} 172 L ${chartPoints.map((point) => `${point.x} ${point.y}`).join(' L ')} L ${chartPoints[chartPoints.length - 1].x} 172 Z` : '';
   const recommendation = display.accuracy < 92 ? 'Slow down slightly and prioritize clean keystrokes. Speed follows accuracy.' : display.consistency < 75 ? 'Keep a steadier rhythm instead of accelerating through familiar words.' : 'Strong control. Try the next duration to build endurance without losing precision.';
 
   return <>
@@ -101,13 +142,14 @@ export default function TypingTest() {
           <div><strong>{display.wpm}</strong><span>WPM</span></div><div><strong>{display.accuracy}%</strong><span>Accuracy</span></div><div><strong>{display.errors}</strong><span>Errors</span></div>
         </div>
 
-        <div className="typingArea" onClick={() => inputRef.current?.focus()} dir={language === 'Amharic' ? 'auto' : 'ltr'}>
-          <p aria-hidden="true">{passage.split('').map((char, index) => <span key={`${char}-${index}`} className={index < typed.length ? (typed[index] === char ? 'correct' : 'incorrect') : index === typed.length ? 'current' : ''}>{char}</span>)}</p>
-          <textarea ref={inputRef} value={typed} onChange={handleInput} disabled={status === 'finished'} aria-label="Type the passage shown above" autoCapitalize="off" autoCorrect="off" spellCheck="false" />
-          {status === 'idle' && <div className="startHint"><kbd>click here</kbd> and start typing</div>}
+        <div className={`typingArea ${status === 'idle' ? 'waiting' : ''}`} onClick={() => inputRef.current?.focus()} dir={language === 'Amharic' ? 'auto' : 'ltr'}>
+          <p ref={passageRef} aria-hidden="true">{passage.split('').map((char, index) => <span ref={index === typed.length ? currentCharRef : null} key={`${char}-${index}`} className={index < typed.length ? (typed[index] === char ? 'correct' : 'incorrect') : ''}>{char}</span>)}</p>
+          <i className="smoothCursor" style={{ height: cursor.height, opacity: cursor.visible ? 1 : 0, transform: `translate3d(${cursor.x}px, ${cursor.y}px, 0)` }} />
+          <textarea ref={inputRef} value={typed} onChange={handleInput} onKeyDown={handleKeyDown} disabled={status === 'finished'} aria-label="Press Enter to start, then type the passage shown above" autoCapitalize="off" autoCorrect="off" spellCheck="false" />
+          {status === 'idle' && <div className="startHint"><kbd>Enter ↵</kbd> to start the test</div>}
         </div>
         <div className="testActions">
-          <span>{status === 'running' ? 'Test in progress' : status === 'finished' ? 'Session complete' : 'Your timer starts with the first key'}</span>
+          <span>{status === 'running' ? 'Test in progress' : status === 'finished' ? 'Session complete' : 'Click the text, then press Enter'}</span>
           <button className="reset" onClick={() => reset()}><span>↻</span> New passage</button>
         </div>
       </div>
@@ -121,10 +163,18 @@ export default function TypingTest() {
           <article><span>Raw speed</span><strong>{result.raw}</strong><small>WPM before errors</small></article>
           <article><span>Accuracy</span><strong>{result.accuracy}<i>%</i></strong><small>{result.correct} correct characters</small></article>
           <article><span>Consistency</span><strong>{result.consistency}<i>%</i></strong><small>rhythm stability</small></article>
-          <article><span>Errors</span><strong>{result.errors}</strong><small>incorrect characters</small></article>
+          <article><span>Total errors</span><strong>{result.errors}</strong><small>{result.correctedErrors} corrected · {result.uncorrectedErrors} left</small></article>
         </div>
         <div className="analysisRow">
-          <article className="chartCard"><div><h3>Speed over time</h3><span>{duration}-second session</span></div><div className="barChart" aria-label="WPM over time">{chart.map((item, i) => <i key={i} style={{ height: `${Math.max(4, (item.wpm / maxChart) * 100)}%` }} title={`${item.wpm} WPM`} />)}</div></article>
+          <article className="chartCard"><div><div><h3>Speed over time</h3><span>Your rhythm throughout the session</span></div><div className="chartPeak"><small>Peak</small><strong>{Math.max(...chart.map((item) => item.wpm))} WPM</strong></div></div><div className="lineChart" aria-label="WPM over time">
+            <svg viewBox="0 0 600 190" role="img" aria-label={`Typing speed graph with a peak of ${Math.max(...chart.map((item) => item.wpm))} words per minute`} preserveAspectRatio="none">
+              <defs><linearGradient id="speedArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#d8ff3e" stopOpacity=".7" /><stop offset="100%" stopColor="#d8ff3e" stopOpacity="0" /></linearGradient></defs>
+              {[30, 77, 124, 171].map((y) => <line key={y} x1="18" x2="582" y1={y} y2={y} className="chartGrid" />)}
+              <path d={chartArea} className="chartArea" />
+              <polyline points={chartLine} className="chartLine" />
+              {chartPoints.map((point, index) => <circle key={index} cx={point.x} cy={point.y} r="3.5" className="chartPoint"><title>{point.second}s · {point.wpm} WPM</title></circle>)}
+            </svg><div className="chartAxis"><span>Start</span><span>{Math.round(duration / 2)}s</span><span>{duration}s</span></div>
+          </div></article>
           <article className="coach"><span>COACH&apos;S NOTE</span><h3>{result.accuracy >= 95 ? 'Precision is your advantage.' : 'Accuracy is the next unlock.'}</h3><p>{recommendation}</p><button onClick={() => reset()}>Try again <b>→</b></button></article>
         </div>
       </>}

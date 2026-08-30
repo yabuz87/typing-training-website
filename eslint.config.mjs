@@ -10,7 +10,7 @@ export default [
       ecmaVersion: 'latest',
       sourceType: 'module',
       parserOptions: { ecmaFeatures: { jsx: true } },
-      globals: { window: 'readonly', document: 'readonly', localStorage: 'readonly', setInterval: 'readonly', clearInterval: 'readonly', setTimeout: 'readonly', process: 'readonly', URL: 'readonly' }
+      globals: { window: 'readonly', document: 'readonly', localStorage: 'readonly', setInterval: 'readonly', clearInterval: 'readonly', setTimeout: 'readonly', process: 'readonly', URL: 'readonly', BroadcastChannel: 'readonly', navigator: 'readonly' }
     },
     rules: { ...js.configs.recommended.rules, 'no-unused-vars': 'off' }
   }
