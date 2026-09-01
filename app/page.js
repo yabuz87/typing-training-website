@@ -1,12 +1,13 @@
 import TypingTest from '@/components/TypingTest';
 import TypingRace from '@/components/TypingRace';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Home() {
   return <main>
     <nav className="nav shell" aria-label="Main navigation">
       <a className="brand" href="#top" aria-label="ElType home"><span className="brandMark">E</span> eltype</a>
       <div className="navLinks"><a href="#test">Test</a><a href="#race">Race</a><a href="#insights">Insights</a><a href="#about">How it works</a></div>
-      <a className="navCta" href="#test">Start typing <span>↗</span></a>
+      <div className="navActions"><ThemeToggle /><a className="navCta" href="#test">Start typing <span>↗</span></a></div>
     </nav>
     <section className="hero shell" id="top">
       <div className="eyebrow"><span /> Free · Focused · Multilingual</div>

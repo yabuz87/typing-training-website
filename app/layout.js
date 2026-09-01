@@ -13,5 +13,6 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   const schema = { '@context': 'https://schema.org', '@type': 'WebApplication', name: 'ElType', applicationCategory: 'EducationalApplication', operatingSystem: 'Any', description: 'Free multilingual typing speed test with detailed performance analytics', offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' } };
-  return <html lang="en"><body>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /></body></html>;
+  const themeScript = `(function(){try{var saved=localStorage.getItem('eltype-theme');var theme=saved||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=theme;document.documentElement.style.colorScheme=theme}catch(e){}})()`;
+  return <html lang="en" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeScript }} /></head><body>{children}<script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }} /></body></html>;
 }

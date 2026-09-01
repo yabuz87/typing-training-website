@@ -68,6 +68,20 @@ export default function TypingTest() {
     return () => clearInterval(sampler);
   }, [duration, secondsLeft, stats.wpm, status]);
   useEffect(() => { if (typed.length >= passage.length && status === 'running') finish(); }, [finish, passage.length, status, typed.length]);
+  useEffect(() => {
+    function startWithEnter(event) {
+      if (status !== 'idle' || event.key !== 'Enter' || event.repeat) return;
+      const target = event.target;
+      const isOwnTypingInput = target === inputRef.current;
+      const isInteractive = target?.closest?.('input, textarea, select, button, a, [contenteditable="true"]');
+      if (isInteractive && !isOwnTypingInput) return;
+      event.preventDefault();
+      setStatus('running');
+      setTimeout(() => inputRef.current?.focus(), 0);
+    }
+    window.addEventListener('keydown', startWithEnter);
+    return () => window.removeEventListener('keydown', startWithEnter);
+  }, [status]);
   useLayoutEffect(() => {
     function positionCursor() {
       const passageNode = passageRef.current;
@@ -108,14 +122,7 @@ export default function TypingTest() {
     }
     setTyped(value);
   }
-  function handleKeyDown(event) {
-    if (status === 'idle' && event.key === 'Enter') {
-      event.preventDefault();
-      setStatus('running');
-      return;
-    }
-    if (event.key === 'Enter') event.preventDefault();
-  }
+  function handleKeyDown(event) { if (event.key === 'Enter') event.preventDefault(); }
   const best = Math.max(0, ...history.map((item) => item.wpm));
   const display = result || stats;
   const chart = result ? (samples.length ? samples : [{ second: duration, wpm: result.wpm }]) : [];
@@ -149,7 +156,7 @@ export default function TypingTest() {
           {status === 'idle' && <div className="startHint"><kbd>Enter ↵</kbd> to start the test</div>}
         </div>
         <div className="testActions">
-          <span>{status === 'running' ? 'Test in progress' : status === 'finished' ? 'Session complete' : 'Click the text, then press Enter'}</span>
+          <span>{status === 'running' ? 'Test in progress' : status === 'finished' ? 'Session complete' : 'Press Enter anywhere to begin'}</span>
           <button className="reset" onClick={() => reset()}><span>↻</span> New passage</button>
         </div>
       </div>
